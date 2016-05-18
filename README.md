@@ -1,3 +1,1 @@
-# Deep Q-Learning trained to Flappy Bird
-
-
+# Deep Q-Learning trained on Flappy Bird
