@@ -3,7 +3,7 @@
 # @Author: Shubham
 # @Date:   2016-05-18 22:14:16
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-19 20:54:26
+# @Last Modified time: 2016-05-20 21:23:07
 
 from itertools import cycle
 import random
@@ -315,8 +315,10 @@ class FlappyBird():
 				sys.exit()
 			# if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
 		
-		if action == True:
-			print('Flap-Baby')
+		assert sum(action) == 1
+
+		if action[1] == 1:
+			# print('Flap-Baby')
 			if self.playery > -2 * IMAGES['player'][0].get_height():
 				self.playerVelY = self.playerFlapAcc
 				self.playerFlapped = True
@@ -328,6 +330,7 @@ class FlappyBird():
 		if crashTest[0]:
 			reward = -1
 			terminal = True
+			self.__init__()
 			# return image_data, reward, terminal
 			# return {
 			# 	'y': self.playery,
@@ -533,3 +536,4 @@ def pixelCollision(rect1, rect2, hitmask1, hitmask2):
 if __name__ == '__main__':
 	main()
 
+# 
