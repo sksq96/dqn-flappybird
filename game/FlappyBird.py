@@ -3,7 +3,7 @@
 # @Author: Shubham
 # @Date:   2016-05-18 22:14:16
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-19 16:03:50
+# @Last Modified time: 2016-05-19 20:54:26
 
 from itertools import cycle
 import random
@@ -305,6 +305,9 @@ class FlappyBird():
 		# loadResources()
 		# pygame.event.pump()
 		
+		terminal = False
+		reward = 0.1
+
 		for event in pygame.event.get():
 			if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
 				print('Quiting...')
@@ -323,15 +326,18 @@ class FlappyBird():
 		crashTest = checkCrash({'x': self.playerx, 'y': self.playery, 'index': self.playerIndex},
 							   self.upperPipes, self.lowerPipes)
 		if crashTest[0]:
-			return {
-				'y': self.playery,
-				'groundCrash': crashTest[1],
-				'basex': self.basex,
-				'upperPipes': self.upperPipes,
-				'lowerPipes': self.lowerPipes,
-				'score': self.score,
-				'playerVelY': self.playerVelY,
-			}
+			reward = -1
+			terminal = True
+			# return image_data, reward, terminal
+			# return {
+			# 	'y': self.playery,
+			# 	'groundCrash': crashTest[1],
+			# 	'basex': self.basex,
+			# 	'upperPipes': self.upperPipes,
+			# 	'lowerPipes': self.lowerPipes,
+			# 	'score': self.score,
+			# 	'playerVelY': self.playerVelY,
+			# }
 
 		# check for self.score
 		playerMidPos = self.playerx + IMAGES['player'][0].get_width() / 2
@@ -340,6 +346,7 @@ class FlappyBird():
 			if pipeMidPos <= playerMidPos < pipeMidPos + 4:
 				self.score += 1
 				SOUNDS['point'].play()
+				reward = 1
 
 		# self.playerIndex self.basex change
 		if (self.loopIter + 1) % 3 == 0:
@@ -379,13 +386,18 @@ class FlappyBird():
 			SCREEN.blit(IMAGES['pipe'][1], (lPipe['x'], lPipe['y']))
 
 		SCREEN.blit(IMAGES['base'], (self.basex, BASEY))
+		
 		# print self.score so player overlaps the self.score
 		showScore(self.score)
+		
 		SCREEN.blit(IMAGES['player'][self.playerIndex], (self.playerx, self.playery))
 
+		image_data = pygame.surfarray.array3d(pygame.display.get_surface())
 		pygame.display.update()
 		FPSCLOCK.tick(FPS)
-# 
+
+		return image_data, reward, terminal
+ 
 
 
 def showGameOverScreen(crashInfo):
