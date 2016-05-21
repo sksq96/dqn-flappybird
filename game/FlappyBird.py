@@ -3,7 +3,7 @@
 # @Author: Shubham
 # @Date:   2016-05-18 22:14:16
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-20 21:23:07
+# @Last Modified time: 2016-05-21 15:45:40
 
 from itertools import cycle
 import random
@@ -36,7 +36,7 @@ FPS = 30
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 # amount by which base can maximum shift to left
-PIPEGAPSIZE  = 100 # gap between upper and lower part of pipe
+PIPEGAPSIZE  = 200 # gap between upper and lower part of pipe
 BASEY        = SCREENHEIGHT * 0.79
 # image, sound and hitmask  dicts
 IMAGES, SOUNDS, HITMASKS = {}, {}, {}
@@ -44,11 +44,11 @@ IMAGES, SOUNDS, HITMASKS = {}, {}, {}
 # list of all possible players (tuple of 3 positions of flap)
 PLAYERS_LIST = (
 	# red bird
-	(
-		'assets/sprites/redbird-upflap.png',
-		'assets/sprites/redbird-midflap.png',
-		'assets/sprites/redbird-downflap.png',
-	),
+	# (
+	# 	'assets/sprites/redbird-upflap.png',
+	# 	'assets/sprites/redbird-midflap.png',
+	# 	'assets/sprites/redbird-downflap.png',
+	# ),
 	# blue bird
 	(
 		# amount by which base can maximum shift to left
@@ -56,24 +56,35 @@ PLAYERS_LIST = (
 		'assets/sprites/bluebird-midflap.png',
 		'assets/sprites/bluebird-downflap.png',
 	),
-	# yellow bird
-	(
-		'assets/sprites/yellowbird-upflap.png',
-		'assets/sprites/yellowbird-midflap.png',
-		'assets/sprites/yellowbird-downflap.png',
-	),
+	# # yellow bird
+	# (
+	# 	'assets/sprites/yellowbird-upflap.png',
+	# 	'assets/sprites/yellowbird-midflap.png',
+	# 	'assets/sprites/yellowbird-downflap.png',
+	# ),
 )
 
 # list of backgrounds
 BACKGROUNDS_LIST = (
-	'assets/sprites/background-day.png',
-	'assets/sprites/background-night.png',
+	# 'assets/sprites/background-orange.png',
+	'assets/sprites/background-black.png',
+	# 'assets/sprites/background-day.png',
+	# 'assets/sprites/background-night.png',
 )
+
+# list of backgrounds
+BACKGROUNDS_BLACK = (
+	# 'assets/sprites/background-orange.png',
+	'assets/sprites/background-black.png',
+	# 'assets/sprites/background-day.png',
+	# 'assets/sprites/background-night.png',
+)
+
 
 # list of pipes
 PIPES_LIST = (
 	'assets/sprites/pipe-green.png',
-	'assets/sprites/pipe-red.png',
+	# 'assets/sprites/pipe-red.png',
 )
 
 
@@ -118,6 +129,7 @@ SOUNDS['wing']   = pygame.mixer.Sound('assets/audio/wing' + soundExt)
 
 randBg = random.randint(0, len(BACKGROUNDS_LIST) - 1)
 IMAGES['background'] = pygame.image.load(BACKGROUNDS_LIST[randBg]).convert()
+IMAGES['backgroundB'] = pygame.image.load(BACKGROUNDS_BLACK[0]).convert()
 
 # select random player sprites
 randPlayer = random.randint(0, len(PLAYERS_LIST) - 1)
@@ -214,7 +226,7 @@ def showWelcomeAnimation():
 
 			if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
 				# make first flap sound and return values for mainGame
-				SOUNDS['wing'].play()
+				# SOUNDS['wing'].play()
 				return {
 					'playery': playery + playerShmVals['val'],
 					'basex': basex,
@@ -322,13 +334,13 @@ class FlappyBird():
 			if self.playery > -2 * IMAGES['player'][0].get_height():
 				self.playerVelY = self.playerFlapAcc
 				self.playerFlapped = True
-				SOUNDS['wing'].play()
+				# SOUNDS['wing'].play()
 
 		# check for crash here
 		crashTest = checkCrash({'x': self.playerx, 'y': self.playery, 'index': self.playerIndex},
 							   self.upperPipes, self.lowerPipes)
 		if crashTest[0]:
-			reward = -1
+			reward = -100
 			terminal = True
 			self.__init__()
 			# return image_data, reward, terminal
@@ -348,8 +360,8 @@ class FlappyBird():
 			pipeMidPos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
 			if pipeMidPos <= playerMidPos < pipeMidPos + 4:
 				self.score += 1
-				SOUNDS['point'].play()
-				reward = 1
+				# SOUNDS['point'].play()
+				reward = 100
 
 		# self.playerIndex self.basex change
 		if (self.loopIter + 1) % 3 == 0:
@@ -391,11 +403,12 @@ class FlappyBird():
 		SCREEN.blit(IMAGES['base'], (self.basex, BASEY))
 		
 		# print self.score so player overlaps the self.score
-		showScore(self.score)
-		
 		SCREEN.blit(IMAGES['player'][self.playerIndex], (self.playerx, self.playery))
-
+		
+		# SCREEN.blit(IMAGES['backgroundB'], (0,0))
 		image_data = pygame.surfarray.array3d(pygame.display.get_surface())
+
+		showScore(self.score)
 		pygame.display.update()
 		FPSCLOCK.tick(FPS)
 
@@ -417,9 +430,9 @@ def showGameOverScreen(crashInfo):
 	upperPipes, lowerPipes = crashInfo['upperPipes'], crashInfo['lowerPipes']
 
 	# play hit and die sounds
-	SOUNDS['hit'].play()
+	# SOUNDS['hit'].play()
 	if not crashInfo['groundCrash']:
-		SOUNDS['die'].play()
+		# SOUNDS['die'].play()
 
 	while True:
 		for event in pygame.event.get():

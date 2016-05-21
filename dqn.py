@@ -2,19 +2,21 @@
 # @Author: shubham
 # @Date:   2016-05-20 11:27:32
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-20 21:30:37
+# @Last Modified time: 2016-05-21 12:48:17
 
 import cv2
 import numpy as np
 import tensorflow as tf
-from random import random, randint
+from random import random, randint, sample
 from game.FlappyBird import FlappyBird
+from collections import deque
 
 # Global parameters
 IMAGE_SIZE = 80
 ACTIONS = 2
 NFLAP = 0
 FLAP = 1
+MEMORY = 2e4
 
 # Network parameters
 STRIDE_1 = 4
@@ -29,9 +31,12 @@ PATCH_SIZE_2 = 4
 PATCH_SIZE_3 = 3
 
 # Hyper parameters
+GAMMA = 0.95
+EPSILON = 0.1
+OBSERVE_LENGTH = 3e3
 HISTORY_LENGTH = 4
 LEARNING_RATE = 1e-6
-EPSILON = 0.1
+MINIBATCH_LENGTH = 32
 
 # Deep Neural Network helper functions
 def weight_variable(shape):
@@ -60,7 +65,7 @@ def accuracy(predictions, labels):
 # Image resize
 def image_reshape(image_data, prev=None, first=False):
 	image_data = cv2.cvtColor(cv2.resize(image_data, (80, 80)), cv2.COLOR_BGR2GRAY)
-	_, image_data = cv2.threshold(image_data,1,255,cv2.THRESH_BINARY)
+	_, image_data = cv2.threshold(image_data,1,255,cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 	
 	if first:
 		return np.stack((image_data, image_data, image_data, image_data), axis=2)
@@ -119,62 +124,86 @@ def tfGraph():
 	a = tf.placeholder("float", [None, ACTIONS])
 	y = tf.placeholder("float", [None])
 		
-	x, readout = create_network()
+	image_data, readout = create_network()
 	readout_action = tf.reduce_sum(tf.mul(readout, a), reduction_indices = 1)
 	cost = tf.reduce_mean(tf.square(y - readout_action))
 		
 	optimizer = tf.train.AdamOptimizer(LEARNING_RATE).minimize(cost)
 	tf.initialize_all_variables().run()
 
-	return x, readout, optimizer
+	return a, y, image_data, readout, optimizer
 
 
-def train_bird(image_data, readout, optimizer, session):
-	
+def train_bird(a, y, image_data, readout, optimizer, session):
 	
 	# start game
 	fbird = FlappyBird()
 	
-	a_t = np.zeros([ACTIONS])
-	a_t[NFLAP] = 1
-	s_t, r_t, terminal = fbird.flapOnce(a_t)
-	s_t = image_reshape(s_t, first=True)
+	# store learning in replay memory
+	replay_memory = deque()	
+
+	action_t = np.zeros([ACTIONS])
+	action_t[NFLAP] = 1
+	state_t, reward_t, terminal_t = fbird.flapOnce(action_t)
+	state_t = image_reshape(state_t, first=True)
 	
+	time_step = 0
 	while True:
 
-		# choose an action with (1-epsilon) probability 
-
-		a_t = np.zeros([ACTIONS])
+		# choose random action with epsilon probability 
+		action_t = np.zeros([ACTIONS])
 		if random() < EPSILON:
 			action_index = randint(NFLAP,FLAP)
+			# action_index = NFLAP
 		else:
-			readout_t = readout.eval(feed_dict = {image_data: [s_t]})		
+			readout_t = readout.eval(feed_dict = {image_data: [state_t]})
 			action_index = np.argmax(readout_t)
-		a_t[action_index] = 1
+		action_t[action_index] = 1
 		
-		print(readout_t)
 
 		# perform the action
-		s_t1, reward, terminal = fbird.flapOnce(a_t)
-		s_t1 = image_reshape(s_t1, prev=s_t)
-		print(s_t1)
-		
-		# s_t1 = cv2.cvtColor(cv2.resize(s_t1, (80, 80)), cv2.COLOR_BGR2GRAY)
-		# ret, s_t1 = cv2.threshold(s_t1, 1, 255, cv2.THRESH_BINARY)
-		# s_t1 = np.reshape(s_t1, (80, 80, 1))
-		# #s_t1 = np.append(x_t1, s_t[:,:,1:], axis = 2)
-		# s_t1 = np.append(s_t1, s_t[:, :, :3], axis=2)
+		state_t1, reward_t, terminal_t = fbird.flapOnce(action_t)
+		state_t1 = image_reshape(state_t1, prev=state_t)
 
+		# store transition in replay memory
+		replay_memory.append((state_t, action_t, reward_t, state_t1, terminal_t))
+		if len(replay_memory) > MEMORY:
+			replay_memory.popleft()
 
-		# if not s_t.tolist() == s_t1.tolist():
-			# print(s_t.tolist() == s_t1.tolist())
-		s_t = s_t1
+		# train fbird if done observing
+		if time_step > OBSERVE_LENGTH:
+			# samaple a minibatch for training
+			minibatch = sample(replay_memory, MINIBATCH_LENGTH)
+
+			state_batch = [memory[0] for memory in minibatch]
+			action_batch = [memory[1] for memory in minibatch]
+			state_next_batch = [memory[3] for memory in minibatch]
+
+			y_batch = []
+			readout_batch = readout.eval(feed_dict = {image_data: state_next_batch})
+			for i, (state, action, reward, state_next, terminal) in enumerate(minibatch):
+				if terminal:
+					y_batch.append(reward)
+				else:
+					y_batch.append(reward + GAMMA * np.max(readout_batch[i]))
+
+			optimizer.run(feed_dict = {
+				image_data: state_batch,
+				a: action_batch,
+				y: y_batch
+			})
+
+		state_t = state_t1
+		time_step += 1
+
+		# logging
+		print("[TIMESTEP]", time_step, "[REWARD]", reward_t, "[READOUT]", np.max(readout_t), "[ACTION]", action_index)
 
 
 def main():
 	session = tf.InteractiveSession()
-	image_data, readout, optimizer = tfGraph()
-	train_bird(image_data, readout, optimizer, session)
+	a, y, image_data, readout, optimizer = tfGraph()
+	train_bird(a, y, image_data, readout, optimizer, session)
 
 if __name__ == '__main__':
 	main()

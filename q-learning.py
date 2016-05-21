@@ -2,7 +2,7 @@
 # @Author: shubham
 # @Date:   2016-05-19 17:03:33
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-19 20:27:26
+# @Last Modified time: 2016-05-21 10:49:17
 
 from random import randint, choice
 from pprint import pprint
@@ -41,3 +41,4 @@ for state in range(5):
 		state, reward = max(enumerate(Q[state]), key=lambda x:x[1])
 		print(state, end=' ')
 	print()
+
