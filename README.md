@@ -1,4 +1,4 @@
-# Deep Q-Learning trained on Flappy Bird
+# Deep Q-Learning
 
 [DQN](https://deepmind.com/research/dqn/), a Reinforcement Learning algorithm trained to play Flappy Bird.
 
