@@ -2,7 +2,7 @@
 # @Author: shubham
 # @Date:   2016-05-20 11:27:32
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-21 12:48:17
+# @Last Modified time: 2016-05-25 15:41:24
 
 import cv2
 import numpy as np
@@ -11,7 +11,11 @@ from random import random, randint, sample
 from game.FlappyBird import FlappyBird
 from collections import deque
 
+# print('hehe')
+
 # Global parameters
+GAME = 'fbird'
+PROGRESS = 'progress/'
 IMAGE_SIZE = 80
 ACTIONS = 2
 NFLAP = 0
@@ -32,15 +36,17 @@ PATCH_SIZE_3 = 3
 
 # Hyper parameters
 GAMMA = 0.95
-EPSILON = 0.1
-OBSERVE_LENGTH = 3e3
+INITIAL_EPSILON = 0.12
+FINAL_EPSILON = 0.01
+OBSERVE_LENGTH = 3e2
+EXPLORE_LENGTH = 3e5
 HISTORY_LENGTH = 4
 LEARNING_RATE = 1e-6
 MINIBATCH_LENGTH = 32
 
 # Deep Neural Network helper functions
 def weight_variable(shape):
-	initial = tf.truncated_normal(shape, stddev=0.1)
+	initial = tf.truncated_normal(shape, stddev=0.)
 	return tf.Variable(initial)
 
 def bias_variable(shape):
@@ -144,25 +150,40 @@ def train_bird(a, y, image_data, readout, optimizer, session):
 
 	action_t = np.zeros([ACTIONS])
 	action_t[NFLAP] = 1
-	state_t, reward_t, terminal_t = fbird.flapOnce(action_t)
+	state_t, reward_t, terminal_t, score_t = fbird.flapOnce(action_t)
 	state_t = image_reshape(state_t, first=True)
 	
+	# saving and loading networks
+	saver = tf.train.Saver()
+	session.run(tf.initialize_all_variables())
+	checkpoint = tf.train.get_checkpoint_state(PROGRESS)
+	if checkpoint and checkpoint.model_checkpoint_path:
+		saver.restore(session, checkpoint.model_checkpoint_path)
+		print("Successfully loaded:", checkpoint.model_checkpoint_path)
+	else:
+		print("Could not find old network weights")
+
+
 	time_step = 0
+	epsilon = INITIAL_EPSILON
 	while True:
 
 		# choose random action with epsilon probability 
 		action_t = np.zeros([ACTIONS])
-		if random() < EPSILON:
+		readout_t = readout.eval(feed_dict = {image_data: [state_t]})
+		if random() < epsilon:
 			action_index = randint(NFLAP,FLAP)
 			# action_index = NFLAP
 		else:
-			readout_t = readout.eval(feed_dict = {image_data: [state_t]})
 			action_index = np.argmax(readout_t)
 		action_t[action_index] = 1
-		
 
+		# scale down epsilon
+		if epsilon > FINAL_EPSILON and time_step > OBSERVE_LENGTH:
+			epsilon -= (INITIAL_EPSILON - FINAL_EPSILON) / EXPLORE_LENGTH
+		
 		# perform the action
-		state_t1, reward_t, terminal_t = fbird.flapOnce(action_t)
+		state_t1, reward_t, terminal_t, score_t = fbird.flapOnce(action_t)
 		state_t1 = image_reshape(state_t1, prev=state_t)
 
 		# store transition in replay memory
@@ -172,7 +193,7 @@ def train_bird(a, y, image_data, readout, optimizer, session):
 
 		# train fbird if done observing
 		if time_step > OBSERVE_LENGTH:
-			# samaple a minibatch for training
+			# sample a minibatch for training
 			minibatch = sample(replay_memory, MINIBATCH_LENGTH)
 
 			state_batch = [memory[0] for memory in minibatch]
@@ -180,12 +201,12 @@ def train_bird(a, y, image_data, readout, optimizer, session):
 			state_next_batch = [memory[3] for memory in minibatch]
 
 			y_batch = []
-			readout_batch = readout.eval(feed_dict = {image_data: state_next_batch})
+			readout_next_batch = readout.eval(feed_dict = {image_data: state_next_batch})
 			for i, (state, action, reward, state_next, terminal) in enumerate(minibatch):
 				if terminal:
 					y_batch.append(reward)
 				else:
-					y_batch.append(reward + GAMMA * np.max(readout_batch[i]))
+					y_batch.append(reward + GAMMA * np.max(readout_next_batch[i]))
 
 			optimizer.run(feed_dict = {
 				image_data: state_batch,
@@ -196,9 +217,12 @@ def train_bird(a, y, image_data, readout, optimizer, session):
 		state_t = state_t1
 		time_step += 1
 
-		# logging
-		print("[TIMESTEP]", time_step, "[REWARD]", reward_t, "[READOUT]", np.max(readout_t), "[ACTION]", action_index)
+		# save progress every 10000 iterations
+		if time_step % 1e4 == 0:
+			saver.save(session, PROGRESS + GAME + '-dqn', global_step = time_step)
 
+		# logging
+		print("[TIMESTEP]", time_step, "[EPSILON]", epsilon, "[REWARD]", reward_t, "[READOUT]", np.max(readout_t), "[ACTION]", action_index, "[SCORE]", score_t)
 
 def main():
 	session = tf.InteractiveSession()
@@ -207,5 +231,4 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
 

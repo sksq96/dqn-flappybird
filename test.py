@@ -2,7 +2,7 @@
 # @Author: shubham
 # @Date:   2016-05-19 13:03:53
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-20 21:23:18
+# @Last Modified time: 2016-05-25 16:13:09
 
 import cv2
 import numpy as np
@@ -19,7 +19,9 @@ def image_reshape(image_data):
 bird = FlappyBird()
 while True:
 	actions = [0, 1] if choice([True]+[False]*10) else [1, 0]
-	image_data, reward, terminal = bird.flapOnce(actions)
+	image_data, reward, terminal, score = bird.flapOnce(actions)
 	image_data = image_reshape(image_data)
+	# print(image_data.tolist())
+	# break
 
 

@@ -3,7 +3,7 @@
 # @Author: Shubham
 # @Date:   2016-05-18 22:14:16
 # @Last Modified by:   shubham
-# @Last Modified time: 2016-05-21 15:45:40
+# @Last Modified time: 2016-05-25 16:16:03
 
 from itertools import cycle
 import random
@@ -11,6 +11,16 @@ import sys
 
 import pygame
 from pygame.locals import *
+
+# headless
+import os
+ 
+os.environ['SDL_VIDEODRIVER'] = 'dummy'
+pygame.init()
+# pygame.display.set_mode((1,1))
+
+
+REWARD_MAX = 1
 
 def getHitmask(image):
 	"""returns a hitmask using an image's alpha."""
@@ -36,7 +46,7 @@ FPS = 30
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 # amount by which base can maximum shift to left
-PIPEGAPSIZE  = 200 # gap between upper and lower part of pipe
+PIPEGAPSIZE  = 240 # gap between upper and lower part of pipe
 BASEY        = SCREENHEIGHT * 0.79
 # image, sound and hitmask  dicts
 IMAGES, SOUNDS, HITMASKS = {}, {}, {}
@@ -88,7 +98,7 @@ PIPES_LIST = (
 )
 
 
-pygame.init()
+# pygame.init()
 FPSCLOCK = pygame.time.Clock()
 SCREEN = pygame.display.set_mode((SCREENWIDTH, SCREENHEIGHT))
 pygame.display.set_caption('Flappy Bird')
@@ -233,14 +243,15 @@ def showWelcomeAnimation():
 					'playerIndexGen': playerIndexGen,
 				}
 
+		# print('HEHE')
 		# from time import sleep
 		# sleep(1)
 		# SOUNDS['wing'].play()
-		# return {
-		# 	'playery': playery + playerShmVals['val'],
-		# 	'basex': basex,
-		# 	'playerIndexGen': playerIndexGen,
-		# }
+		return {
+			'playery': playery + playerShmVals['val'],
+			'basex': basex,
+			'playerIndexGen': playerIndexGen,
+		}
 
 		# adjust playery, playerIndex, basex
 		if (loopIter + 1) % 5 == 0:
@@ -340,7 +351,7 @@ class FlappyBird():
 		crashTest = checkCrash({'x': self.playerx, 'y': self.playery, 'index': self.playerIndex},
 							   self.upperPipes, self.lowerPipes)
 		if crashTest[0]:
-			reward = -100
+			reward = -REWARD_MAX
 			terminal = True
 			self.__init__()
 			# return image_data, reward, terminal
@@ -361,7 +372,7 @@ class FlappyBird():
 			if pipeMidPos <= playerMidPos < pipeMidPos + 4:
 				self.score += 1
 				# SOUNDS['point'].play()
-				reward = 100
+				reward = REWARD_MAX
 
 		# self.playerIndex self.basex change
 		if (self.loopIter + 1) % 3 == 0:
@@ -406,13 +417,19 @@ class FlappyBird():
 		SCREEN.blit(IMAGES['player'][self.playerIndex], (self.playerx, self.playery))
 		
 		# SCREEN.blit(IMAGES['backgroundB'], (0,0))
+		# print(pygame.surfarray.array3d(pygame.display.get_surface()).shape)
 		image_data = pygame.surfarray.array3d(pygame.display.get_surface())
 
+
+		# window = pygame.display.set_mode()
+		# pygame.image.save(window, "screenshot.jpeg")
+
 		showScore(self.score)
+		# print(self.score)
 		pygame.display.update()
 		FPSCLOCK.tick(FPS)
 
-		return image_data, reward, terminal
+		return image_data, reward, terminal, self.score
  
 
 
@@ -432,6 +449,7 @@ def showGameOverScreen(crashInfo):
 	# play hit and die sounds
 	# SOUNDS['hit'].play()
 	if not crashInfo['groundCrash']:
+		pass
 		# SOUNDS['die'].play()
 
 	while True:
@@ -549,4 +567,4 @@ def pixelCollision(rect1, rect2, hitmask1, hitmask2):
 if __name__ == '__main__':
 	main()
 
-# 
+
